@@ -1,4 +1,4 @@
-# Exe in relase
+# Exe in release
 
 cmd : 
 
