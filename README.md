@@ -1,4 +1,5 @@
-Exe in relase
+#Exe in relase
+
 cmd : 
 
 npm init -y
