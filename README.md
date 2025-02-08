@@ -1,5 +1,5 @@
 # Exe in release
-
+https://www.youtube.com/watch?v=O6TnfbQrwyk
 cmd : 
 
 npm init -y
