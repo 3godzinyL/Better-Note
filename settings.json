@@ -1,0 +1,12 @@
+{
+  "windowOpacity": "63",
+  "taskbarOpacity": 100,
+  "blurEffect": 20,
+  "globalOpacity": 100,
+  "theme": "purple",
+  "videoTheme": "C:\\Users\\huber\\Desktop\\better note\\motywy\\Cherry Blossom Animation 4k.mp4",
+  "themeOverlay": {
+    "enabled": true,
+    "intensity": "0"
+  }
+}
