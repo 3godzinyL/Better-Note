@@ -4,7 +4,7 @@ const fs = require('fs');
 const config = require('./config.js');
 
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('DOM Content Loaded'); // Debugging
+  console.log('DOM Content Loaded'); // Debug
 
   // Przyciski kontrolne okna
   const minimizeBtn = document.querySelector('#minimizeBtn');
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const editorContainer = document.querySelector('#editor-container');
   const editor = document.getElementById('editor');
 
-  console.log('Elements:', { // Debugging
+  console.log('Elements:', {
     minimizeBtn,
     maximizeBtn,
     closeBtn,
@@ -27,17 +27,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Obsługa przycisków okna
   minimizeBtn.onclick = () => {
-    console.log('Minimize clicked'); // Debugging
+    console.log('Minimize clicked');
     ipcRenderer.send('minimize-window');
   };
 
   maximizeBtn.onclick = () => {
-    console.log('Maximize clicked'); // Debugging
+    console.log('Maximize clicked');
     ipcRenderer.send('maximize-window');
   };
 
   closeBtn.onclick = () => {
-    console.log('Close clicked'); // Debugging
+    console.log('Close clicked');
     ipcRenderer.send('close-window');
   };
 
@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Panel boczny
   panelToggle.onclick = () => {
-    console.log('Panel toggle clicked'); // Debugging
+    console.log('Panel toggle clicked');
     const isOpen = rightPanel.classList.contains('open');
     
     if (!isOpen) {
@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Obsługa przycisku ustawień
   settingsBtn.onclick = () => {
-    console.log('Settings clicked'); // Debugging
+    console.log('Settings clicked');
     if (!rightPanel.classList.contains('open')) {
       panelToggle.click();
     }
@@ -114,122 +114,206 @@ document.addEventListener('DOMContentLoaded', () => {
     editor.value = content;
   });
 
-  // Obsługa suwaków przezroczystości
-  const windowOpacitySlider = document.getElementById('windowOpacitySlider');
-  const taskbarOpacitySlider = document.getElementById('taskbarOpacitySlider');
-  const windowSliderValue = windowOpacitySlider.nextElementSibling;
-  const taskbarSliderValue = taskbarOpacitySlider.nextElementSibling;
+  // Helper – konwersja HEX do RGBA
+  function hexToRgba(hex, alpha) {
+    const rgb = hexToRgb(hex);
+    return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+  }
 
+  // Funkcje aktualizujące ustawienia
   function updateWindowOpacity(value) {
     const opacity = Math.max(0.1, value / 100);
-    
-    // Aktualizuj przezroczystość całego okna
-    document.body.style.backgroundColor = `rgba(31, 35, 53, ${opacity})`;
-    
-    // Aktualizuj elementy interfejsu
+    const primaryColor = getComputedStyle(document.documentElement)
+                           .getPropertyValue('--primary-color').trim() || '#1a1b26';
+    const newBg = hexToRgba(primaryColor, opacity);
     const elements = [
       document.getElementById('editor'),
       document.getElementById('left-sidebar'),
-      document.getElementById('right-panel'),
-      document.getElementById('window-bg')
+      document.getElementById('right-panel')
     ];
-    
     elements.forEach(element => {
       if (element) {
-        // Ustaw przezroczystość tła elementu
-        element.style.backgroundColor = `rgba(31, 35, 53, ${opacity})`;
-        
-        // Dodaj efekt szkła przy większej przezroczystości
-        if (value < 70) {
-          element.style.backdropFilter = `blur(${Math.max(5, (100 - value) / 3)}px)`;
-          element.style.borderColor = `rgba(255, 255, 255, ${0.1 - (value/1000)})`;
-        } else {
-          element.style.backdropFilter = 'none';
-        }
+        element.style.backgroundColor = newBg;
       }
     });
-
-    // Zapisz ustawienie
     config.set('windowOpacity', value);
   }
 
   function updateTaskbarOpacity(value) {
+    const opacity = Math.max(0.1, value / 100);
+    const secondaryColor = getComputedStyle(document.documentElement)
+                             .getPropertyValue('--secondary-color').trim() || '#1f2335';
+    const newBg = hexToRgba(secondaryColor, opacity);
     const taskbar = document.getElementById('taskbar');
-    const opacity = Math.max(0.1, value / 100); // Minimum 0.1 dla widoczności
-    
-    // Ulepszone efekty dla paska zadań
-    taskbar.style.backgroundColor = `rgba(31, 35, 53, ${opacity})`;
-    taskbar.style.backdropFilter = `blur(${Math.max(3, (100 - value) / 4)}px)`;
-    
-    // Dodajemy subtelną krawędź przy wysokiej przezroczystości
-    if (value < 50) {
-      taskbar.style.borderBottom = '1px solid rgba(255, 255, 255, 0.1)';
-    } else {
-      taskbar.style.borderBottom = 'none';
+    if (taskbar) {
+      taskbar.style.backgroundColor = newBg;
     }
+    config.set('taskbarOpacity', value);
   }
 
-  // Obsługa przezroczystości okna
-  windowOpacitySlider.oninput = () => {
+  function updateBlurEffect(value) {
+    const maxBlur = 20; // maksymalnie 20px
+    const blurAmount = (value / 100) * maxBlur;
+    const elements = [
+      document.getElementById('editor'),
+      document.getElementById('left-sidebar'),
+      document.getElementById('right-panel'),
+      document.getElementById('taskbar')
+    ];
+    elements.forEach(element => {
+      if (element) {
+        element.style.backdropFilter = `blur(${blurAmount}px)`;
+      }
+    });
+    config.set('blurEffect', value);
+  }
+
+  function updateGlobalOpacity(value) {
+    const globalOpacity = Math.max(0.1, value / 100);
+    document.body.style.opacity = globalOpacity;
+    config.set('globalOpacity', value);
+  }
+
+  function updateThemeOverlay(enabled, intensity = 30) {
+    const currentTheme = config.get('theme') || 'midnight';
+    const theme = themes[currentTheme];
+    if (!theme) return;
+
+    const accentColor = theme['--accent-color'];
+    const rgb = hexToRgb(accentColor);
+    
+    // Usuń starą nakładkę jeśli istnieje
+    const existingOverlay = document.querySelector('.theme-overlay');
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
+
+    if (enabled) {
+      // Tworzenie nowej nakładki
+      const overlay = document.createElement('div');
+      overlay.className = 'theme-overlay';
+      overlay.style.background = `linear-gradient(
+        135deg,
+        rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${intensity/200}),
+        rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${intensity/400})
+      )`;
+      document.body.appendChild(overlay);
+
+      // Aplikowanie efektów na interfejsie
+      const interfaceElements = [
+        document.getElementById('editor'),
+        document.getElementById('left-sidebar'),
+        document.getElementById('right-panel'),
+        document.getElementById('taskbar')
+      ];
+
+      interfaceElements.forEach(el => {
+        if (el) {
+          el.style.boxShadow = `inset 0 0 0 1000px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${intensity/400})`;
+          el.style.borderColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${intensity/200})`;
+        }
+      });
+
+      // Aktualizacja kolorów tekstu i ikon
+      document.documentElement.style.setProperty('--text-color', 
+        intensity > 50 ? '#1a1b26' : '#c0caf5'
+      );
+    } else {
+      // Przywracanie domyślnych kolorów
+      const interfaceElements = [
+        document.getElementById('editor'),
+        document.getElementById('left-sidebar'),
+        document.getElementById('right-panel'),
+        document.getElementById('taskbar')
+      ];
+
+      interfaceElements.forEach(el => {
+        if (el) {
+          el.style.boxShadow = '';
+          el.style.borderColor = 'var(--border-color)';
+        }
+      });
+
+      document.documentElement.style.setProperty('--text-color', '#c0caf5');
+    }
+
+    // Aktualizacja ustawień
+    config.setNestedValue('themeOverlay', 'enabled', enabled);
+    config.setNestedValue('themeOverlay', 'intensity', intensity);
+  }
+
+  // Dodaj aktualizację suwaka przy zmianie wartości
+  function updateSliderBackground(slider) {
+    const value = slider.value;
+    const percentage = (value - slider.min) / (slider.max - slider.min) * 100;
+    slider.style.setProperty('--value', `${percentage}%`);
+  }
+
+  // Obsługa wszystkich suwaków
+  const windowOpacitySlider = document.getElementById('windowOpacitySlider');
+  const taskbarOpacitySlider = document.getElementById('taskbarOpacitySlider');
+  const blurEffectSlider = document.getElementById('blurEffectSlider');
+  const globalOpacitySlider = document.getElementById('globalOpacitySlider');
+
+  const windowSliderValue = windowOpacitySlider.nextElementSibling;
+  const taskbarSliderValue = taskbarOpacitySlider.nextElementSibling;
+  const blurSliderValue = blurEffectSlider.nextElementSibling;
+  const globalSliderValue = globalOpacitySlider.nextElementSibling;
+
+  // Inicjalizacja tła dla wszystkich suwaków
+  document.querySelectorAll('.slider').forEach(slider => {
+    updateSliderBackground(slider);
+  });
+
+  // Obsługa zdarzeń dla suwaków
+  windowOpacitySlider.addEventListener('input', () => {
     const value = windowOpacitySlider.value;
     windowSliderValue.textContent = `${value}%`;
     updateWindowOpacity(value);
-  };
+    updateSliderBackground(windowOpacitySlider);
+  });
 
-  // Obsługa przezroczystości paska zadań
-  taskbarOpacitySlider.oninput = () => {
+  taskbarOpacitySlider.addEventListener('input', () => {
     const value = taskbarOpacitySlider.value;
     taskbarSliderValue.textContent = `${value}%`;
     updateTaskbarOpacity(value);
-  };
-
-  // Załaduj zapisane ustawienia przy starcie
-  window.addEventListener('load', () => {
-    // Załaduj ustawienia z konfiguracji
-    const savedSettings = {
-      windowOpacity: config.get('windowOpacity'),
-      taskbarOpacity: config.get('taskbarOpacity'),
-      blurEffect: config.get('blurEffect'),
-      theme: config.get('theme'),
-      videoTheme: config.get('videoTheme'),
-      themeOverlay: config.get('themeOverlay')
-    };
-
-    // Zastosuj zapisane ustawienia
-    windowOpacitySlider.value = savedSettings.windowOpacity;
-    taskbarOpacitySlider.value = savedSettings.taskbarOpacity;
-    blurEffectSlider.value = savedSettings.blurEffect;
-    
-    updateWindowOpacity(savedSettings.windowOpacity);
-    updateTaskbarOpacity(savedSettings.taskbarOpacity);
-    updateBlurEffect(savedSettings.blurEffect);
-
-    // Aktualizuj wyświetlane wartości
-    windowSliderValue.textContent = `${savedSettings.windowOpacity}%`;
-    taskbarSliderValue.textContent = `${savedSettings.taskbarOpacity}%`;
-    blurSliderValue.textContent = `${savedSettings.blurEffect}%`;
-
-    // Zastosuj motyw
-    if (savedSettings.theme) {
-      applyTheme(savedSettings.theme);
-    }
-
-    // Zastosuj motyw wideo jeśli był ustawiony
-    if (savedSettings.videoTheme) {
-      applyVideoTheme(savedSettings.videoTheme);
-    }
-
-    // Zastosuj nakładkę jeśli była włączona
-    if (savedSettings.themeOverlay?.enabled) {
-      themeOverlayToggle.checked = true;
-      overlayIntensitySlider.value = savedSettings.themeOverlay.intensity;
-      overlaySliderValue.textContent = `${savedSettings.themeOverlay.intensity}%`;
-      overlaySliderContainer.style.display = 'block';
-      updateThemeOverlay(true, savedSettings.themeOverlay.intensity);
-    }
+    updateSliderBackground(taskbarOpacitySlider);
   });
 
-  // Zaktualizowane motywy z lepszymi kolorami
+  blurEffectSlider.addEventListener('input', () => {
+    const value = blurEffectSlider.value;
+    blurSliderValue.textContent = `${value}%`;
+    updateBlurEffect(value);
+    updateSliderBackground(blurEffectSlider);
+  });
+
+  globalOpacitySlider.addEventListener('input', () => {
+    const value = globalOpacitySlider.value;
+    globalSliderValue.textContent = `${value}%`;
+    updateGlobalOpacity(value);
+    updateSliderBackground(globalOpacitySlider);
+  });
+
+  // Obsługa nakładki tematycznej
+  const themeOverlayToggle = document.getElementById('themeOverlayToggle');
+  const overlayIntensitySlider = document.getElementById('overlayIntensitySlider');
+  const overlaySliderValue = overlayIntensitySlider.nextElementSibling;
+  const overlaySliderContainer = document.querySelector('.overlay-slider');
+
+  themeOverlayToggle.addEventListener('change', (e) => {
+    const isChecked = e.target.checked;
+    overlaySliderContainer.style.display = isChecked ? 'block' : 'none';
+    const intensity = overlayIntensitySlider.value;
+    updateThemeOverlay(isChecked, intensity);
+  });
+
+  overlayIntensitySlider.addEventListener('input', (e) => {
+    const value = e.target.value;
+    overlaySliderValue.textContent = `${value}%`;
+    updateThemeOverlay(themeOverlayToggle.checked, value);
+  });
+
+  // Zestaw motywów – kolory i motywy wideo
   const themes = {
     midnight: {
       '--primary-color': '#1a1b26',
@@ -261,177 +345,113 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Funkcja do aplikowania motywu
   function applyTheme(themeName) {
     const theme = themes[themeName];
     if (!theme) return;
-
     const root = document.documentElement;
     Object.entries(theme).forEach(([property, value]) => {
       root.style.setProperty(property, value);
     });
-
     config.set('theme', themeName);
-    
     document.querySelectorAll('.theme-button').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.theme === themeName);
     });
+    if (themeOverlayToggle.checked) {
+      updateThemeOverlay(true, overlayIntensitySlider.value);
+    }
   }
 
-  // Nasłuchiwanie na przyciski motywów
   document.querySelectorAll('.theme-button').forEach(button => {
     button.onclick = () => {
       const themeName = button.dataset.theme;
       applyTheme(themeName);
+      localStorage.setItem('selected-theme', themeName);
     };
   });
 
-  // Załaduj zapisany motyw przy starcie
-  const savedTheme = localStorage.getItem('selected-theme');
-  if (savedTheme) {
-    applyTheme(savedTheme);
-  }
-
   loadVideoThemes();
   
-  // Przywróć ostatnio wybrany motyw wideo
   const savedVideoTheme = localStorage.getItem('selected-video-theme');
   if (savedVideoTheme) {
     applyVideoTheme(savedVideoTheme);
   }
 
-  // Dodaj nowe funkcje do obsługi nakładki
-  function updateThemeOverlay(enabled, intensity = 30) {
-    const root = document.documentElement;
-    const currentTheme = localStorage.getItem('selected-theme') || 'midnight';
-    const theme = themes[currentTheme];
-    
-    if (!theme) return;
+  window.addEventListener('load', () => {
+    const savedSettings = {
+      windowOpacity: config.get('windowOpacity'),
+      taskbarOpacity: config.get('taskbarOpacity'),
+      blurEffect: config.get('blurEffect'),
+      globalOpacity: config.get('globalOpacity'),
+      theme: config.get('theme'),
+      videoTheme: config.get('videoTheme'),
+      themeOverlay: config.get('themeOverlay')
+    };
 
-    const video = document.getElementById('background-video');
-    const windowBg = document.getElementById('window-bg');
-    
-    if (enabled) {
-      // Konwertuj kolor akcentu na RGB
-      const accentColor = theme['--accent-color'];
-      const rgb = hexToRgb(accentColor);
-      
-      // Tworzymy nakładkę z kolorem motywu
-      const overlay = `linear-gradient(
-        rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${intensity/200}),
-        rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${intensity/400})
-      )`;
-      
-      if (video) {
-        video.style.filter = `saturate(${1 + intensity/100}) hue-rotate(${intensity/2}deg)`;
-      }
-      windowBg.style.background = overlay;
-      windowBg.style.opacity = '1';
-    } else {
-      if (video) {
-        video.style.filter = 'none';
-      }
-      windowBg.style.background = 'none';
-    }
+    // Ustawianie wartości suwaków
+    windowOpacitySlider.value = savedSettings.windowOpacity;
+    taskbarOpacitySlider.value = savedSettings.taskbarOpacity;
+    blurEffectSlider.value = savedSettings.blurEffect;
+    globalOpacitySlider.value = savedSettings.globalOpacity;
 
-    config.setNestedValue('themeOverlay', 'enabled', enabled);
-    config.setNestedValue('themeOverlay', 'intensity', intensity);
-  }
+    // Aktualizacja wyświetlanych wartości
+    windowSliderValue.textContent = `${savedSettings.windowOpacity}%`;
+    taskbarSliderValue.textContent = `${savedSettings.taskbarOpacity}%`;
+    blurSliderValue.textContent = `${savedSettings.blurEffect}%`;
+    globalSliderValue.textContent = `${savedSettings.globalOpacity}%`;
 
-  const themeOverlayToggle = document.getElementById('themeOverlayToggle');
-  const overlayIntensitySlider = document.getElementById('overlayIntensitySlider');
-  const overlaySliderValue = overlayIntensitySlider.nextElementSibling;
-  const overlaySliderContainer = document.querySelector('.overlay-slider');
-
-  themeOverlayToggle.addEventListener('change', (e) => {
-    const isChecked = e.target.checked;
-    overlaySliderContainer.style.display = isChecked ? 'block' : 'none';
-    
-    const intensity = overlayIntensitySlider.value;
-    updateThemeOverlay(isChecked, intensity);
-  });
-
-  overlayIntensitySlider.addEventListener('input', (e) => {
-    const value = e.target.value;
-    overlaySliderValue.textContent = `${value}%`;
-    updateThemeOverlay(themeOverlayToggle.checked, value);
-  });
-
-  // Modyfikuj funkcję applyTheme
-  const originalApplyTheme = applyTheme;
-  applyTheme = function(themeName) {
-    originalApplyTheme(themeName);
-    if (themeOverlayToggle.checked) {
-      updateThemeOverlay(true, overlayIntensitySlider.value);
-    }
-  };
-
-  // Załaduj zapisane ustawienia nakładki
-  const savedOverlayEnabled = localStorage.getItem('theme-overlay-enabled') === 'true';
-  const savedOverlayIntensity = localStorage.getItem('theme-overlay-intensity') || '30';
-  
-  themeOverlayToggle.checked = savedOverlayEnabled;
-  overlayIntensitySlider.value = savedOverlayIntensity;
-  overlaySliderValue.textContent = `${savedOverlayIntensity}%`;
-  overlaySliderContainer.style.display = savedOverlayEnabled ? 'block' : 'none';
-  
-  if (savedOverlayEnabled) {
-    updateThemeOverlay(true, savedOverlayIntensity);
-  }
-
-  // Dodaj nową funkcję do obsługi globalnej przezroczystości
-  function updateGlobalOpacity(value) {
-    const opacity = Math.max(0.1, value / 100);
-    
-    // Lista wszystkich elementów do modyfikacji
-    const elements = [
-      document.body,
-      document.getElementById('editor'),
-      document.getElementById('left-sidebar'),
-      document.getElementById('right-panel'),
-      document.getElementById('window-bg')
-    ];
-    
-    elements.forEach(element => {
-      if (element) {
-        // Ustawiamy przezroczystość tła
-        element.style.backgroundColor = `rgba(31, 35, 53, ${opacity})`;
-      }
+    // Aktualizacja tła suwaków
+    document.querySelectorAll('.slider').forEach(slider => {
+      updateSliderBackground(slider);
     });
 
-    // Specjalne traktowanie paska górnego - minimum 30% nieprzezroczystości
-    const taskbar = document.getElementById('taskbar');
-    if (taskbar) {
-      const taskbarOpacity = Math.max(0.3, opacity);
-      taskbar.style.backgroundColor = `rgba(31, 35, 53, ${taskbarOpacity})`;
+    // Aplikowanie ustawień
+    updateWindowOpacity(savedSettings.windowOpacity);
+    updateTaskbarOpacity(savedSettings.taskbarOpacity);
+    updateBlurEffect(savedSettings.blurEffect);
+    updateGlobalOpacity(savedSettings.globalOpacity);
+
+    // Ustawienia nakładki tematycznej
+    if (savedSettings.themeOverlay?.enabled) {
+      themeOverlayToggle.checked = true;
+      overlayIntensitySlider.value = savedSettings.themeOverlay.intensity;
+      overlaySliderValue.textContent = `${savedSettings.themeOverlay.intensity}%`;
+      overlaySliderContainer.style.display = 'block';
+      updateThemeOverlay(true, savedSettings.themeOverlay.intensity);
+      updateSliderBackground(overlayIntensitySlider);
     }
 
-    // Zachowaj efekt szkła
-    const glassElements = [
-      document.getElementById('editor'),
-      document.getElementById('left-sidebar'),
-      document.getElementById('right-panel'),
-      document.getElementById('taskbar')
-    ];
+    if (savedSettings.theme) {
+      applyTheme(savedSettings.theme);
+    }
 
-    glassElements.forEach(element => {
-      if (element) {
-        element.style.backdropFilter = `blur(${Math.max(5, (100 - value) / 3)}px)`;
-      }
-    });
+    if (savedSettings.videoTheme) {
+      applyVideoTheme(savedSettings.videoTheme);
+    }
+  });
 
-    config.set('globalOpacity', value);
+  // Dodaj funkcję do aktualizacji numerów linii
+  function updateLineNumbers() {
+    const editor = document.getElementById('editor');
+    const lineNumbers = document.getElementById('line-numbers');
+    const lines = editor.value.split('\n');
+    
+    lineNumbers.innerHTML = lines
+      .map((_, index) => `<div class="line-number">${index + 1}</div>`)
+      .join('');
+
+    // Synchronizacja przewijania
+    lineNumbers.scrollTop = editor.scrollTop;
   }
 
-  // Dodaj nowy suwak do HTML i jego obsługę
-  const globalOpacitySlider = document.getElementById('globalOpacitySlider');
-  const globalSliderValue = globalOpacitySlider.nextElementSibling;
+  // Dodaj nasłuchiwanie na zmiany w edytorze
+  editor.addEventListener('input', updateLineNumbers);
+  editor.addEventListener('scroll', () => {
+    const lineNumbers = document.getElementById('line-numbers');
+    lineNumbers.scrollTop = editor.scrollTop;
+  });
 
-  globalOpacitySlider.oninput = () => {
-    const value = globalOpacitySlider.value;
-    globalSliderValue.textContent = `${value}%`;
-    updateGlobalOpacity(value);
-  };
+  // Inicjalizacja numerów linii
+  updateLineNumbers();
 });
 
 function insertAtCursor(element, text) {
@@ -511,9 +531,9 @@ function applyVideoTheme(videoPath) {
     video.autoplay = true;
     video.loop = true;
     video.muted = true;
-    video.style.width = '100vw';  // Pełna szerokość okna
-    video.style.height = '100vh'; // Pełna wysokość okna
-    video.style.objectFit = 'cover'; // Zachowaj proporcje i wypełnij
+    video.style.width = '100vw';
+    video.style.height = '100vh';
+    video.style.objectFit = 'cover';
     video.style.position = 'fixed';
     video.style.top = '0';
     video.style.left = '0';
@@ -530,7 +550,6 @@ function applyVideoTheme(videoPath) {
   document.body.classList.add('video-theme-active');
   updateInterfaceForVideoTheme();
   
-  // Zastosuj zapisaną globalną przezroczystość
   const savedGlobalOpacity = config.get('globalOpacity') || 100;
   updateGlobalOpacity(savedGlobalOpacity);
 
@@ -552,14 +571,12 @@ function updateInterfaceForVideoTheme() {
     }
   });
 
-  // Specjalne style dla edytora
   const editor = document.getElementById('editor');
   if (editor) {
     editor.style.boxShadow = '0 0 20px rgba(0, 0, 0, 0.3)';
   }
 }
 
-// Pomocnicza funkcja do konwersji HEX na RGB
 function hexToRgb(hex) {
   const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
   hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
@@ -570,4 +587,4 @@ function hexToRgb(hex) {
     g: parseInt(result[2], 16),
     b: parseInt(result[3], 16)
   } : null;
-} 
+}

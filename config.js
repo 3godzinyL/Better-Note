@@ -13,7 +13,8 @@ class Config {
       videoTheme: null,
       themeOverlay: {
         enabled: false,
-        intensity: 30
+        intensity: 30,
+        blend: 'overlay'
       }
     };
     this.settings = this.loadSettings();
@@ -58,4 +59,4 @@ class Config {
   }
 }
 
-module.exports = new Config(); 
+module.exports = new Config();

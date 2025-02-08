@@ -28,6 +28,7 @@
         overflow: hidden;
         font-family: 'JetBrains Mono', 'Segoe UI', monospace;
         color: var(--text-color);
+        transition: opacity 0.3s ease;
       }
 
       #taskbar {
@@ -112,15 +113,36 @@
       }
 
       #editor-container {
-        margin-left: 45px;
+        position: relative;
+        display: flex;
+        margin-left: 20px;
+        margin-right: 20px;
         padding: 20px;
         flex: 1;
-        position: relative;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
+      #line-numbers {
+        position: absolute;
+        left: 20px;
+        top: 20px;
+        bottom: 20px;
+        width: 50px;
+        padding: 20px 10px;
+        background: transparent;
+        color: var(--accent-color);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        line-height: 1.6;
+        text-align: right;
+        user-select: none;
+        opacity: 0.4;
+        border-right: 1px solid var(--border-color);
+      }
+
       #editor {
-        width: 100%;
+        margin-left: 50px;
+        width: calc(100% - 50px);
         height: 100%;
         background: rgba(31, 35, 53, 0.95);
         backdrop-filter: blur(5px);
@@ -138,6 +160,16 @@
       #editor:focus {
         outline: none;
         box-shadow: 0 0 0 2px var(--accent-color);
+      }
+
+      .line-number {
+        opacity: 0.6;
+        transition: opacity 0.2s ease;
+      }
+
+      .line-number:hover {
+        opacity: 1;
+        color: var(--text-color);
       }
 
       #right-panel {
@@ -163,11 +195,6 @@
 
       .panel-section {
         margin-bottom: 20px;
-      }
-
-      #right-panel.open .panel-section {
-        opacity: 1;
-        transform: translateX(0);
       }
 
       .panel-button {
@@ -413,7 +440,7 @@
         opacity: 0.3;
       }
 
-      /* Nowy element tła okna */
+      /* Element tła okna */
       #window-bg {
         position: fixed;
         top: 0;
@@ -430,7 +457,7 @@
         transition: background-color 0.3s ease, opacity 0.3s ease;
       }
 
-      /* Style dla motywów wideo */
+      /* Motywy wideo */
       #background-video {
         position: fixed;
         top: 0;
@@ -487,7 +514,6 @@
         text-align: center;
       }
 
-      /* Style dla interfejsu z motywem wideo */
       .video-theme-active #editor,
       .video-theme-active #left-sidebar,
       .video-theme-active #right-panel {
@@ -512,110 +538,91 @@
         transform: translateY(-2px);
       }
 
-      /* Dodaj animację dla zmian rozmycia */
-      #editor,
-      #left-sidebar,
-      #right-panel,
-      #taskbar {
-        transition: backdrop-filter 0.3s ease, background-color 0.3s ease;
+      body, #editor, #left-sidebar, #right-panel, #taskbar, #window-bg {
+        transition: background-color 0.3s ease, backdrop-filter 0.3s ease;
       }
-      
-      /* Popraw styl suwaka dla lepszej widoczności aktualnej wartości */
-      .slider::-webkit-slider-thumb {
-        box-shadow: 0 0 0 2px var(--primary-color);
-      }
-      
-      .settings-group {
+
+      /* Nowy styl dla przełącznika */
+      .toggle-switch {
         position: relative;
-        overflow: hidden;
+        display: inline-block;
+        width: 46px;
+        height: 24px;
+        margin-left: auto;
       }
-      
-      .settings-group::after {
-        content: '';
+
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .toggle-slider {
         position: absolute;
-        bottom: 0;
+        cursor: pointer;
+        top: 0;
         left: 0;
         right: 0;
-        height: 1px;
-        background: linear-gradient(
-          to right,
-          transparent,
-          var(--accent-color),
-          transparent
-        );
-        opacity: 0.3;
+        bottom: 0;
+        background-color: var(--border-color);
+        transition: .4s;
+        border-radius: 24px;
       }
 
-      /* Style dla checkboxa i kontrolki nakładki */
-      .theme-overlay-control {
-        background: var(--primary-color);
-        border-radius: 12px;
-        padding: 15px;
-        margin-top: 15px;
-        border: 1px solid var(--border-color);
-        transition: all 0.3s ease;
-      }
-
-      .theme-overlay-control:hover {
-        border-color: var(--accent-color);
-      }
-
-      .checkbox-wrapper {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 10px;
-      }
-
-      .theme-checkbox {
-        display: none;
-      }
-
-      .checkbox-label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        font-size: 14px;
-        color: var(--text-color);
-      }
-
-      .checkbox-label::before {
-        content: '';
-        width: 18px;
+      .toggle-slider:before {
+        position: absolute;
+        content: "";
         height: 18px;
-        border: 2px solid var(--accent-color);
-        border-radius: 4px;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: 'Font Awesome 5 Free';
-        font-weight: 900;
-        font-size: 12px;
-        color: var(--primary-color);
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: var(--text-color);
+        transition: .4s;
+        border-radius: 50%;
       }
 
-      .theme-checkbox:checked + .checkbox-label::before {
-        content: '\f00c';
+      input:checked + .toggle-slider {
         background-color: var(--accent-color);
       }
 
-      .overlay-slider {
-        margin-top: 10px;
-        padding-top: 10px;
-        border-top: 1px solid var(--border-color);
+      input:checked + .toggle-slider:before {
+        transform: translateX(22px);
+        background-color: var(--primary-color);
       }
 
-      /* Modyfikacja dla trybu wideo */
-      .video-theme-active .theme-overlay-control {
-        background: rgba(0, 0, 0, 0.3);
-        backdrop-filter: blur(10px);
+      .settings-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
       }
 
-      /* Dodaj płynne przejścia dla zmian przezroczystości */
-      body, #editor, #left-sidebar, #right-panel, #taskbar, #window-bg {
-        transition: background-color 0.3s ease, backdrop-filter 0.3s ease;
+      /* Poprawiony styl dla suwaka */
+      .slider {
+        background: linear-gradient(to right, 
+          var(--accent-color) 0%, 
+          var(--accent-color) var(--value, 0%), 
+          var(--border-color) var(--value, 0%), 
+          var(--border-color) 100%
+        );
+      }
+
+      .slider::-webkit-slider-thumb {
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+        border: 2px solid var(--accent-color);
+      }
+
+      /* Dodatkowe styles dla nakładki */
+      .theme-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        z-index: 1;
+        mix-blend-mode: overlay;
+        transition: opacity 0.3s ease;
       }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -623,7 +630,7 @@
   </head>
   <body>
     <div id="window-bg">
-      <!-- Video będzie dodawane tutaj dynamicznie przez JavaScript -->
+      <!-- Tło i ewentualna nakładka zostaną dodane przez JavaScript -->
     </div>
     <div id="taskbar">
       <div class="window-title">Better Note</div>
@@ -650,6 +657,7 @@
     </div>
 
     <div id="editor-container">
+      <div id="line-numbers"></div>
       <textarea id="editor" placeholder="Rozpocznij pisanie..."></textarea>
     </div>
 
@@ -734,23 +742,27 @@
         </div>
       </div>
 
-      <div class="theme-overlay-control">
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="themeOverlayToggle" class="theme-checkbox">
-          <label for="themeOverlayToggle" class="checkbox-label">
+      <div class="theme-overlay-control panel-section">
+        <div class="panel-title">Nakładka motywu</div>
+        <div class="settings-group">
+          <label class="settings-label">
             <i class="fas fa-palette"></i>
-            Nakładka kolorystyczna motywu
+            Nakładka kolorystyczna
+            <div class="toggle-switch">
+              <input type="checkbox" id="themeOverlayToggle">
+              <span class="toggle-slider"></span>
+            </div>
           </label>
-        </div>
-        
-        <div class="slider-container overlay-slider" style="display: none;">
-          <input type="range" 
-                 id="overlayIntensitySlider" 
-                 min="0"
-                 max="100" 
-                 value="30" 
-                 class="slider">
-          <span class="slider-value">30%</span>
+          
+          <div class="slider-container overlay-slider" style="display: none;">
+            <input type="range" 
+                   id="overlayIntensitySlider" 
+                   min="0"
+                   max="100" 
+                   value="30" 
+                   class="slider">
+            <span class="slider-value">30%</span>
+          </div>
         </div>
       </div>
 
@@ -825,4 +837,4 @@
       </div>
     </div>
   </body>
-</html> 
+</html>

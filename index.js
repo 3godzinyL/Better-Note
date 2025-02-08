@@ -21,12 +21,11 @@ function createWindow() {
     }
   });
 
-  // Dodaj obsługę kliknięć przez przezroczyste obszary
+  // Obsługa kliknięć przez przezroczyste obszary
   mainWindow.setIgnoreMouseEvents(false);
 
   mainWindow.loadFile('index.html');
 
-  // Nasłuchiwanie na zdarzenia okna
   mainWindow.on('maximize', () => {
     mainWindow.webContents.send('window-maximized');
   });
@@ -95,7 +94,6 @@ ipcMain.on('save-pdf', async () => {
   }
 });
 
-// Dodajemy obsługę zapisywania pliku
 ipcMain.on('save-file', async () => {
   const result = await dialog.showSaveDialog(mainWindow, {
     filters: [
@@ -104,7 +102,6 @@ ipcMain.on('save-file', async () => {
   });
 
   if (!result.canceled) {
-    // Pobierz zawartość z renderera
     mainWindow.webContents.send('get-content');
   }
 });
