@@ -1,12 +1,12 @@
 {
-  "windowOpacity": "40",
-  "taskbarOpacity": "12",
-  "blurEffect": "26",
+  "windowOpacity": "19",
+  "taskbarOpacity": "10",
+  "blurEffect": "9",
   "globalOpacity": "100",
-  "theme": "purple",
-  "videoTheme": "C:\\Users\\huber\\Desktop\\better note\\motywy\\Cherry Blossom Animation 4k.mp4",
+  "theme": "coral",
+  "videoTheme": "C:\\Users\\huber\\Desktop\\better note\\motywy\\4K Animated Wallpaper   Cherry Blossom River.mp4",
   "themeOverlay": {
     "enabled": true,
-    "intensity": "17"
+    "intensity": "25"
   }
 }

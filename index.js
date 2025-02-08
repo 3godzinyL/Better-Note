@@ -8,7 +8,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    minWidth: 800,
+    minWidth: 900,
     minHeight: 600,
     frame: false,
     transparent: true,
@@ -21,9 +21,7 @@ function createWindow() {
     }
   });
 
-  // Obsługa kliknięć przez przezroczyste obszary
   mainWindow.setIgnoreMouseEvents(false);
-
   mainWindow.loadFile('index.html');
 
   mainWindow.on('maximize', () => {
@@ -38,54 +36,43 @@ function createWindow() {
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  if (process.platform !== 'darwin') app.quit();
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-// Obsługa zdarzeń okna
 ipcMain.on('minimize-window', (event) => {
   mainWindow.minimize();
 });
 
 ipcMain.on('maximize-window', (event) => {
-  if (mainWindow.isMaximized()) {
-    mainWindow.unmaximize();
-  } else {
-    mainWindow.maximize();
-  }
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
 });
 
 ipcMain.on('close-window', (event) => {
   mainWindow.close();
 });
 
-// Obsługa plików
 ipcMain.on('open-file', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
-    filters: [
-      { name: 'Text Files', extensions: ['txt', 'md'] }
-    ]
+    filters: [{ name: 'Text Files', extensions: ['txt', 'md'] }]
   });
 
   if (!result.canceled && result.filePaths.length > 0) {
     const content = fs.readFileSync(result.filePaths[0], 'utf8');
+    const filename = path.basename(result.filePaths[0]);
     mainWindow.webContents.send('file-content', content);
+    mainWindow.webContents.send('file-opened', filename);
   }
 });
 
 ipcMain.on('save-pdf', async () => {
   const result = await dialog.showSaveDialog(mainWindow, {
-    filters: [
-      { name: 'PDF', extensions: ['pdf'] }
-    ]
+    filters: [{ name: 'PDF', extensions: ['pdf'] }]
   });
 
   if (!result.canceled) {
@@ -96,9 +83,7 @@ ipcMain.on('save-pdf', async () => {
 
 ipcMain.on('save-file', async () => {
   const result = await dialog.showSaveDialog(mainWindow, {
-    filters: [
-      { name: 'Text Files', extensions: ['txt', 'md'] }
-    ]
+    filters: [{ name: 'Text Files', extensions: ['txt', 'md'] }]
   });
 
   if (!result.canceled) {
