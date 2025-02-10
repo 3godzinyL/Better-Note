@@ -3,6 +3,18 @@ const path = require('path');
 const fs = require('fs');
 const config = require('./config.js');
 
+const APP_DATA_DIR = path.join(__dirname, 'temp_files');
+
+// Upewnij się, że katalog istnieje
+if (!fs.existsSync(APP_DATA_DIR)) {
+  fs.mkdirSync(APP_DATA_DIR);
+}
+
+let openFiles = [
+  { name: 'untitled.txt', content: '', path: null, isModified: false }
+];
+let currentFileIndex = 0;
+
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM Content Loaded');
 
@@ -61,10 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const settingsBtn = document.querySelector('#settingsBtn');
 
   newFileBtn?.addEventListener('click', () => {
-    if (confirm('Czy chcesz utworzyć nowy plik? Niezapisane zmiany zostaną utracone.')) {
-      editor.value = '';
-      addFileTab('untitled.txt', true);
-    }
+    addNewFile();
   });
 
   openFileBtn?.addEventListener('click', () => {
@@ -72,7 +81,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   saveFileBtn?.addEventListener('click', () => {
-    ipcRenderer.send('save-file');
+    const currentFile = openFiles[currentFileIndex];
+    if (currentFile.path) {
+      // Zapisz istniejący plik
+      ipcRenderer.send('save-file', { content: editor.value, path: currentFile.path });
+      currentFile.isModified = false;
+      updateFileTabs();
+    } else {
+      // Pokaż dialog zapisu dla nowego pliku
+      ipcRenderer.send('save-file-as', editor.value);
+    }
   });
 
   settingsBtn.onclick = () => {
@@ -134,8 +152,16 @@ document.addEventListener('DOMContentLoaded', () => {
     openFilesBar.insertBefore(newTab, addBtn);
   }
 
-  ipcRenderer.on('file-opened', (event, filename) => {
-    addFileTab(filename, true);
+  ipcRenderer.on('file-opened', (event, { filename, content, path }) => {
+    const fileIndex = openFiles.findIndex(f => f.path === path);
+    if (fileIndex !== -1) {
+      // Plik już jest otwarty
+      switchToFile(fileIndex);
+    } else {
+      // Dodaj nowy plik
+      openFiles.push({ name: filename, content, path, isModified: false });
+      switchToFile(openFiles.length - 1);
+    }
   });
 
   // Obsługa przycisku "+" do otwierania nowego pliku
@@ -343,6 +369,20 @@ document.addEventListener('DOMContentLoaded', () => {
       '--accent-color': '#f43f5e',
       '--text-color': '#e7e5e4',
       '--border-color': '#3f3f3f'
+    },
+    darkGold: {
+      '--primary-color': '#1a1814',
+      '--secondary-color': '#242021',
+      '--accent-color': '#ffd700',
+      '--text-color': '#e2e0d5',
+      '--border-color': '#383432'
+    },
+    oceanNight: {
+      '--primary-color': '#0f1b2d',
+      '--secondary-color': '#162a45',
+      '--accent-color': '#00ffff',
+      '--text-color': '#e0f2ff',
+      '--border-color': '#234567'
     }
   };
 
@@ -424,31 +464,115 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Numeracja linii w edytorze
+  // Aktualizacja funkcji updateLineNumbers
   function updateLineNumbers() {
     const lineNumbers = document.getElementById('line-numbers');
     const lines = editor.value.split('\n');
-    const currentLine = editor.value.substr(0, editor.selectionStart).split('\n').length;
-    lineNumbers.innerHTML = lines
-      .map((_, index) => `<div class="line-number ${index + 1 === currentLine ? 'active' : ''}">${index + 1}</div>`)
-      .join('');
-    lineNumbers.scrollTop = editor.scrollTop;
+    
+    // Dokładniejsze obliczanie aktualnej linii z uwzględnieniem pozycji kliknięcia
+    const getClickedLine = () => {
+      const rect = editor.getBoundingClientRect();
+      const clickY = window.event ? window.event.clientY - rect.top : 0;
+      const lineHeight = 21; // wysokość linii
+      const editorPadding = 15; // padding górny edytora
+      const scrollOffset = editor.scrollTop;
+      
+      // Obliczanie rzeczywistej linii z uwzględnieniem przewijania i paddingu
+      const clickedLineNumber = Math.floor((clickY + scrollOffset - editorPadding) / lineHeight) + 1;
+      return Math.max(1, Math.min(clickedLineNumber, lines.length));
+    };
+
+    // Użyj pozycji kliknięcia, jeśli jest to zdarzenie click, w przeciwnym razie użyj pozycji kursora
+    const currentLine = window.event && window.event.type === 'click' 
+      ? getClickedLine()
+      : editor.value.substr(0, editor.selectionStart).split('\n').length;
+    
+    // Generowanie numerów linii
+    lineNumbers.innerHTML = '';
+    lines.forEach((_, index) => {
+      const lineNumber = document.createElement('div');
+      lineNumber.className = `line-number ${index + 1 === currentLine ? 'active' : ''}`;
+      lineNumber.textContent = index + 1;
+      lineNumbers.appendChild(lineNumber);
+    });
+
+    // Zachowanie pozycji przewijania
+    const currentScroll = editor.scrollTop;
+    lineNumbers.style.top = -currentScroll + 'px';
   }
 
-  editor.addEventListener('input', updateLineNumbers);
-  editor.addEventListener('click', updateLineNumbers);
-  editor.addEventListener('keyup', updateLineNumbers);
+  // Funkcja dostosowująca wysokość edytora
+  function adjustEditorHeight() {
+    const editorContentWrapper = document.querySelector('.editor-content-wrapper');
+    const windowHeight = window.innerHeight;
+    const topOffset = editorContentWrapper.getBoundingClientRect().top;
+    const height = windowHeight - topOffset - 40; // Zwiększono margines dla pełnego przewijania
+
+    editorContentWrapper.style.height = `${height}px`;
+    editor.style.height = '100%';
+  }
+
+  // Dodanie obsługi zmiany rozmiaru okna
+  window.addEventListener('resize', adjustEditorHeight);
+
+  // Event listenery
   editor.addEventListener('scroll', () => {
-    document.getElementById('line-numbers').scrollTop = editor.scrollTop;
+    const lineNumbers = document.getElementById('line-numbers');
+    const currentScroll = editor.scrollTop;
+    lineNumbers.style.top = -currentScroll + 'px';
   });
 
+  editor.addEventListener('input', updateLineNumbers);
+
+  editor.addEventListener('click', (e) => {
+    updateLineNumbers();
+  });
+
+  editor.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Enter') {
+      updateLineNumbers();
+    }
+  });
+
+  // Dodanie obsługi klawiszy
+  editor.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      editor.value = editor.value.substring(0, start) + '    ' + editor.value.substring(end);
+      editor.selectionStart = editor.selectionEnd = start + 4;
+      updateLineNumbers();
+    }
+  });
+
+  // Dodaj obsługę Ctrl+S
+  editor.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key === 's') {
+      e.preventDefault();
+      const currentFile = openFiles[currentFileIndex];
+      
+      if (currentFile.path && !currentFile.path.includes('untitled')) {
+        // Szybkie zapisanie istniejącego pliku
+        ipcRenderer.send('save-file', { content: editor.value, path: currentFile.path });
+      } else {
+        // Pokaż dialog zapisu dla nowego pliku
+        ipcRenderer.send('save-file-as', editor.value);
+      }
+    }
+  });
+
+  // Inicjalizacja
   updateLineNumbers();
+  adjustEditorHeight();
 
   function loadVideoThemes() {
     const themesPath = path.join(__dirname, 'motywy');
     try {
       const files = fs.readdirSync(themesPath).filter(file =>
-        file.toLowerCase().endsWith('.mp4') || file.toLowerCase().endsWith('.webm')
+        file.toLowerCase().endsWith('.mp4') || 
+        file.toLowerCase().endsWith('.webm') ||
+        file.toLowerCase().endsWith('.gif')
       );
 
       const videoThemesSection = document.createElement('div');
@@ -497,34 +621,92 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function applyVideoTheme(videoPath) {
+  function applyVideoTheme(mediaPath) {
     const backgroundVideo = document.getElementById('background-video');
-    if (!backgroundVideo) {
+    const isGif = mediaPath.toLowerCase().endsWith('.gif');
+    const videoOptimization = config.getVideoOptimization();
+    
+    // Funkcja tworząca zoptymalizowany element wideo
+    function createOptimizedVideo() {
       const video = document.createElement('video');
       video.id = 'background-video';
       video.autoplay = true;
       video.loop = true;
       video.muted = true;
-      video.style.width = '100vw';
-      video.style.height = '100vh';
-      video.style.objectFit = 'cover';
-      video.style.position = 'fixed';
-      video.style.top = '0';
-      video.style.left = '0';
-      video.style.right = '0';
-      video.style.bottom = '0';
-      video.style.zIndex = '-2';
-      video.innerHTML = `<source src="${videoPath}" type="video/mp4">`;
-      document.getElementById('window-bg').appendChild(video);
-    } else {
-      backgroundVideo.querySelector('source').src = videoPath;
-      backgroundVideo.load();
+      // Ustaw atrybut preload na 'metadata' dla mniejszego obciążenia
+      video.setAttribute('preload', 'metadata');
+      // Ustaw obraz zastępczy – poster umożliwia szybsze wyświetlenie statycznego obrazu
+      video.setAttribute('poster', 'path/to/low-res-poster.jpg');
+
+      // Ustawienia stylów dla pełnoekranowego tła
+      Object.assign(video.style, {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        right: '0',
+        bottom: '0',
+        width: '100vw',
+        height: '100vh',
+        zIndex: '-2',
+        objectFit: 'cover'
+      });
+
+      if (videoOptimization.enabled) {
+        // Możesz dostosować playbackRate oraz intensywność blur
+        video.playbackRate = videoOptimization.playbackRate;
+        if (videoOptimization.blur) {
+          // Jeśli obciążenie GPU jest problemem, rozważ zmniejszenie lub wyłączenie efektu blur
+          video.style.filter = `blur(${videoOptimization.blurAmount}px)`;
+        }
+      }
+
+      return video;
     }
+
+    if (!backgroundVideo) {
+      if (isGif) {
+        // Jeśli plik jest GIFem, używamy tagu <img>
+        const img = document.createElement('img');
+        img.id = 'background-video';
+        Object.assign(img.style, {
+          width: '100vw',
+          height: '100vh',
+          objectFit: 'cover',
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          zIndex: '-2'
+        });
+        img.src = mediaPath;
+        document.getElementById('window-bg').appendChild(img);
+      } else {
+        // Tworzymy zoptymalizowany element wideo
+        const video = createOptimizedVideo();
+        video.innerHTML = `<source src="${mediaPath}" type="video/mp4">`;
+        document.getElementById('window-bg').appendChild(video);
+      }
+    } else {
+      if (isGif) {
+        if (backgroundVideo.tagName === 'VIDEO') {
+          const img = document.createElement('img');
+          img.id = 'background-video';
+          Object.assign(img.style, backgroundVideo.style);
+          img.src = mediaPath;
+          backgroundVideo.replaceWith(img);
+        } else {
+          backgroundVideo.src = mediaPath;
+        }
+      } else {
+        backgroundVideo.querySelector('source').src = mediaPath;
+        backgroundVideo.load();
+      }
+    }
+    
     document.body.classList.add('video-theme-active');
     updateInterfaceForVideoTheme();
     const savedGlobalOpacity = config.get('globalOpacity') || 100;
     updateGlobalOpacity(savedGlobalOpacity);
-    config.set('videoTheme', videoPath);
+    config.set('videoTheme', mediaPath);
   }
 
   function updateInterfaceForVideoTheme() {
@@ -552,4 +734,222 @@ document.addEventListener('DOMContentLoaded', () => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null;
   }
+
+  // Funkcja do aktualizacji zakładek
+  function updateFileTabs() {
+    const openFilesBar = document.querySelector('.open-files-bar');
+    const addBtn = document.getElementById('addFileTabBtn');
+    
+    // Usuń wszystkie zakładki oprócz przycisku dodawania
+    Array.from(openFilesBar.children).forEach(child => {
+      if (child.id !== 'addFileTabBtn') {
+        child.remove();
+      }
+    });
+
+    // Dodaj zakładki dla wszystkich otwartych plików
+    openFiles.forEach((file, index) => {
+      const tab = document.createElement('button');
+      tab.className = `file-tab ${index === currentFileIndex ? 'active' : ''}`;
+      
+      // Skróć nazwę pliku, jeśli jest za długa
+      const displayName = file.name.length > 20 
+        ? file.name.substring(0, 17) + '...' 
+        : file.name;
+      
+      tab.innerHTML = `
+        <i class="fas fa-file-alt"></i>
+        <span class="file-name" title="${file.name}">${displayName}${file.isModified ? ' *' : ''}</span>
+        <span class="close-tab-btn">
+          <i class="fas fa-times"></i>
+        </span>
+      `;
+
+      tab.addEventListener('click', (e) => {
+        if (!e.target.closest('.close-tab-btn')) {
+          switchToFile(index);
+        }
+      });
+
+      const closeBtn = tab.querySelector('.close-tab-btn');
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeFile(index);
+      });
+
+      openFilesBar.insertBefore(tab, addBtn);
+    });
+  }
+
+  // Funkcja przełączania między plikami
+  function switchToFile(index) {
+    // Zapisz zawartość aktualnego pliku
+    openFiles[currentFileIndex].content = editor.value;
+    
+    currentFileIndex = index;
+    editor.value = openFiles[index].content;
+    updateFileTabs();
+    updateLineNumbers();
+  }
+
+  // Funkcja zamykania pliku
+  function closeFile(index) {
+    if (openFiles[index].isModified) {
+      if (!confirm('Plik zawiera niezapisane zmiany. Czy na pewno chcesz go zamknąć?')) {
+        return;
+      }
+    }
+
+    const file = openFiles[index];
+    // Usuń plik tymczasowy, jeśli to był untitled
+    if (file.path && file.path.includes(APP_DATA_DIR)) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch (error) {
+        console.error('Błąd podczas usuwania pliku tymczasowego:', error);
+      }
+    }
+
+    openFiles.splice(index, 1);
+    if (openFiles.length === 0) {
+      addNewFile();
+    } else {
+      currentFileIndex = Math.min(currentFileIndex, openFiles.length - 1);
+      editor.value = openFiles[currentFileIndex].content;
+      updateFileTabs();
+      updateLineNumbers();
+    }
+  }
+
+  // Funkcja dodawania nowego pliku
+  function addNewFile() {
+    const tempPath = path.join(APP_DATA_DIR, `untitled-${openFiles.length + 1}.txt`);
+    // Tworzenie pustego pliku
+    fs.writeFileSync(tempPath, '');
+    
+    const newFile = { 
+      name: `untitled-${openFiles.length + 1}.txt`, 
+      content: '', 
+      path: tempPath, 
+      isModified: false 
+    };
+    openFiles.push(newFile);
+    switchToFile(openFiles.length - 1);
+  }
+
+  // Obsługa zmian w edytorze
+  editor.addEventListener('input', () => {
+    openFiles[currentFileIndex].isModified = true;
+    openFiles[currentFileIndex].content = editor.value;
+    updateFileTabs();
+    updateLineNumbers();
+  });
+
+  // Obsługa zapisywania pliku
+  ipcRenderer.on('file-saved', (event, { path }) => {
+    const fileIndex = openFiles.findIndex(f => f.path === path);
+    if (fileIndex !== -1) {
+      openFiles[fileIndex].isModified = false;
+      updateFileTabs();
+    }
+  });
+
+  ipcRenderer.on('file-saved-as', (event, { filename, path }) => {
+    openFiles[currentFileIndex].name = filename;
+    openFiles[currentFileIndex].path = path;
+    openFiles[currentFileIndex].isModified = false;
+    updateFileTabs();
+  });
+
+  // Dodaj obsługę nowych kontrolek
+  const maxResolutionSelect = document.getElementById('maxResolutionSelect');
+  
+  maxResolutionSelect?.addEventListener('change', () => {
+    const options = {
+      maxResolution: maxResolutionSelect.value
+    };
+    config.setVideoOptimization(options);
+    
+    // Odśwież wideo jeśli istnieje
+    const video = document.getElementById('background-video');
+    if (video && video.tagName === 'VIDEO') {
+      const currentSrc = video.querySelector('source').src;
+      applyVideoTheme(currentSrc);
+    }
+  });
+
+  // Załaduj zapisane ustawienia
+  const savedOptimization = config.getVideoOptimization();
+  if (maxResolutionSelect) {
+    maxResolutionSelect.value = savedOptimization.maxResolution;
+  }
+
+  // Dodaj obsługę przycisku "Kod"
+  const codeFormatBtn = document.querySelector('#codeFormatBtn');
+  const syntaxOptions = document.querySelector('#syntax-options'); // Nowy kontener na checkboxy
+
+  codeFormatBtn.addEventListener('click', () => {
+    syntaxOptions.classList.toggle('visible');
+  });
+
+  // Inicjalizacja CodeMirror zamiast natywnego <textarea> dla lepszej obsługi kolorowania składni
+  const editorTextArea = document.getElementById('editor');
+  const cmEditor = CodeMirror.fromTextArea(editorTextArea, {
+    lineNumbers: true,
+    mode: "javascript",
+    theme: "material-darker"
+  });
+
+  // Dodaj obsługę boxów wyboru języka (kolorowania kodu)
+  const codeBoxes = document.querySelectorAll('.code-box');
+  codeBoxes.forEach(box => {
+    box.addEventListener('click', () => {
+      const lang = box.getAttribute('data-language').toLowerCase();
+      let mode;
+      switch (lang) {
+        case 'html':
+          mode = 'htmlmixed';
+          break;
+        case 'css':
+          mode = 'css';
+          break;
+        case 'javascript':
+          mode = 'javascript';
+          break;
+        case 'cpp':
+          mode = 'text/x-c++src';
+          break;
+        default:
+          mode = 'javascript';
+      }
+      cmEditor.setOption('mode', mode);
+      // Wyróżnij wybrany box, usuwając klasę active z pozostałych
+      codeBoxes.forEach(b => b.classList.remove('active'));
+      box.classList.add('active');
+    });
+  });
+
+  // Dodanie obsługi nowych checkboxów dla funkcji kodowania
+  const syntaxHighlightingOptions = {
+    html: document.getElementById('syntaxHtml'),
+    css: document.getElementById('syntaxCss'),
+    javascript: document.getElementById('syntaxJavascript'),
+    cpp: document.getElementById('syntaxCpp')
+  };
+
+  // Inicjalizacja checkboxów na podstawie ustawień
+  const savedSyntax = config.get('syntaxHighlighting');
+  Object.keys(syntaxHighlightingOptions).forEach(lang => {
+    if (savedSyntax[lang]) {
+      syntaxHighlightingOptions[lang].checked = true;
+    }
+  });
+
+  // Obsługa zmian checkboxów
+  Object.entries(syntaxHighlightingOptions).forEach(([lang, checkbox]) => {
+    checkbox.addEventListener('change', () => {
+      config.setNestedValue('syntaxHighlighting', lang, checkbox.checked);
+      // Opcjonalnie możesz dodać tutaj logikę aktualizacji edytora
+    });
+  });
 });

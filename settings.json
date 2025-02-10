@@ -1,12 +1,25 @@
 {
-  "windowOpacity": "19",
-  "taskbarOpacity": "10",
-  "blurEffect": "9",
+  "windowOpacity": "12",
+  "taskbarOpacity": "53",
+  "blurEffect": "19",
   "globalOpacity": "100",
   "theme": "coral",
   "videoTheme": "C:\\Users\\huber\\Desktop\\better note\\motywy\\4K Animated Wallpaper   Cherry Blossom River.mp4",
   "themeOverlay": {
     "enabled": true,
-    "intensity": "25"
+    "intensity": "10"
+  },
+  "videoOptimization": {
+    "enabled": true,
+    "playbackRate": 0.5,
+    "blur": true,
+    "blurAmount": 2,
+    "maxResolution": "720p"
+  },
+  "syntaxHighlighting": {
+    "html": true,
+    "css": true,
+    "javascript": true,
+    "cpp": true
   }
 }

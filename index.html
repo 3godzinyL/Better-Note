@@ -131,77 +131,59 @@
       }
 
       #line-numbers {
-        width: var(--line-numbers-width);
-        padding: 15px 0;
-        background: var(--panel-bg);
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 45px;
+        height: auto;
+        background: rgba(31, 35, 53, 0.95);
+        backdrop-filter: blur(10px);
         border-right: 1px solid var(--border-accent);
         color: rgba(192, 202, 245, 0.4);
         font-family: 'Fira Code', monospace;
         font-size: 11px;
         text-align: right;
-        padding-right: 8px;
+        padding: 15px 0;
         user-select: none;
         transition: all 0.3s ease;
-        position: relative;
-        overflow-y: auto;
-        height: 100%;
-      }
-
-      #line-numbers::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 1px;
-        height: 100%;
-        background: var(--accent-color);
-        opacity: 0.2;
-        transition: all 0.3s ease;
-      }
-
-      #line-numbers:hover::after {
-        opacity: 0.4;
-        box-shadow: 0 0 8px var(--accent-color);
+        z-index: 1;
       }
 
       .line-number {
-        padding: 0 6px;
-        line-height: 1.6;
+        padding: 0 8px;
+        height: 21px;
+        line-height: 21px;
+        opacity: 0.6;
         transition: all 0.2s ease;
         position: relative;
       }
 
-      .line-number.active {
+      .line-number:hover {
+        opacity: 1;
         color: var(--accent-color);
-        background: rgba(122, 162, 247, 0.08);
       }
 
-      .line-number.active::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        height: 100%;
-        width: 2px;
-        background: var(--accent-color);
-        opacity: 0.8;
+      .line-number.active {
+        color: var(--accent-color);
+        opacity: 1;
+        background: rgba(122, 162, 247, 0.08);
       }
 
       #editor {
         flex: 1;
-        background: var(--panel-bg);
+        margin-left: 45px;
+        background: rgba(31, 35, 53, 0.95);
+        backdrop-filter: blur(10px);
         color: var(--text-color);
         font-family: 'Source Code Pro', 'Fira Code', monospace;
         font-size: 14px;
-        line-height: 1.6;
+        line-height: 21px;
         padding: 15px 20px;
         border: none;
         resize: none;
         overflow-y: auto;
         letter-spacing: 0.3px;
-        backdrop-filter: blur(var(--blur-amount, 10px));
         height: 100%;
-        max-height: none;
       }
 
       #editor:focus {
@@ -257,20 +239,23 @@
 
       /* Niestandardowy scrollbar */
       ::-webkit-scrollbar {
-        width: 6px;
+        width: 8px;
       }
 
       ::-webkit-scrollbar-track {
-        background: transparent;
+        background: var(--primary-color);
+        border-radius: 4px;
       }
 
       ::-webkit-scrollbar-thumb {
-        background: var(--border-color);
-        border-radius: 3px;
+        background: var(--accent-color);
+        border-radius: 4px;
+        opacity: 0.5;
       }
 
       ::-webkit-scrollbar-thumb:hover {
         background: var(--accent-color);
+        opacity: 1;
       }
 
       @keyframes slideIn {
@@ -670,7 +655,7 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        background: transparent;
+        background: rgba(31, 35, 53, 0.95);
         color: var(--text-color);
         border: none;
         font-size: 12px;
@@ -679,9 +664,11 @@
         opacity: 0.7;
         border-radius: 0;
         margin: 0;
-        padding: 0 20px 0 10px;
+        padding: 0 30px 0 12px;
         height: 34px;
         transition: all 0.2s ease;
+        backdrop-filter: blur(10px);
+        border-right: 1px solid var(--border-accent);
       }
 
       .file-tab:hover {
@@ -695,26 +682,31 @@
         border-bottom: 2px solid var(--accent-color);
       }
 
-      .file-tab i {
-        font-size: 12px;
+      .file-tab .file-name {
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
-      /* Przycisk zamykania (biały "x") – pojawia się przy najechaniu */
       .close-tab-btn {
         position: absolute;
-        right: 6px;
+        right: 8px;
         top: 50%;
         transform: translateY(-50%);
-        background: transparent;
-        color: var(--text-color);
-        cursor: pointer;
-        font-size: 12px;
         opacity: 0;
-        transition: opacity 0.3s ease;
+        transition: all 0.2s ease;
+        padding: 4px;
+        border-radius: 4px;
+        background: rgba(122, 162, 247, 0.1);
       }
 
       .file-tab:hover .close-tab-btn {
         opacity: 1;
+      }
+
+      .close-tab-btn:hover {
+        background: rgba(122, 162, 247, 0.2);
       }
 
       /* Przycisk "+" do otwierania nowego pliku – usunięto margin-left */
@@ -749,7 +741,6 @@
         box-shadow: var(--panel-shadow);
         border: 1px solid var(--border-accent);
         margin-top: 20px;
-        min-height: 0;
       }
 
       /* Wrapper zawartości edytora */
@@ -757,7 +748,10 @@
         display: flex;
         flex: 1;
         background: transparent;
-        min-height: 0;
+        position: relative;
+        overflow: hidden;
+        min-height: 300px;
+        height: calc(100vh - 140px);
       }
 
       /* Dodane: animacja zamykania zakładki */
@@ -771,10 +765,168 @@
       #line-numbers::-webkit-scrollbar {
         width: 0;
       }
+
+      /* Dodanie kontenera przewijania dla numerów linii */
+      .line-numbers-container {
+        display: none;
+      }
+
+      /* Optymalizacja animacji */
+      .animate-opacity {
+        will-change: opacity;
+        transform: translateZ(0);
+      }
+      
+      #background-video {
+        backface-visibility: hidden;
+        perspective: 1000;
+        transform: translateZ(0);
+      }
+      
+      /* Optymalizacja dla motywów wideo */
+      .video-theme-active #editor,
+      .video-theme-active #left-sidebar,
+      .video-theme-active #right-panel {
+        transform: translateZ(0);
+        will-change: backdrop-filter;
+      }
+      
+      /* Dodaj płynne przejścia dla nowych motywów */
+      .theme-darkGold {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      .theme-oceanNight {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .settings-select {
+        background: var(--secondary-color);
+        color: var(--text-color);
+        border: 1px solid var(--border-accent);
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .settings-select:hover {
+        border-color: var(--accent-color);
+      }
+
+      .settings-select option {
+        background: var(--primary-color);
+      }
+
+      /* Nowe style dla boxów kolorowania kodu */
+      .code-boxes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .code-box {
+        background: #1d1f21;
+        border: 1px solid #3e4451;
+        border-radius: 4px;
+        padding: 10px;
+        flex: 1 1 calc(50% - 10px);
+        cursor: pointer;
+        transition: transform 0.2s ease;
+      }
+      .code-box:hover {
+        transform: scale(1.02);
+      }
+      .code-box span {
+        display: block;
+        text-align: center;
+        margin-top: 5px;
+        color: #c5c8c6;
+        font-size: 0.9em;
+      }
+
+      /* Style dla sekcji syntax-options */
+      .syntax-options {
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 10px;
+        opacity: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: opacity 0.3s ease, max-height 0.5s ease;
+      }
+
+      .syntax-options.visible {
+        display: flex;
+        opacity: 1;
+        max-height: 200px; /* Dopasuj do zawartości */
+      }
+
+      /* Stylizacja etykiet i checkboxów */
+      .custom-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background-color: var(--secondary-color);
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+
+      .custom-checkbox:hover {
+        background-color: var(--accent-color);
+        color: var(--primary-color);
+      }
+
+      .custom-checkbox input {
+        display: none;
+      }
+
+      .custom-checkbox .checkmark {
+        width: 18px;
+        height: 18px;
+        background-color: #eee;
+        border: 2px solid var(--border-accent);
+        border-radius: 4px;
+        position: relative;
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+      }
+
+      .custom-checkbox input:checked ~ .checkmark {
+        background-color: var(--accent-color);
+        border-color: var(--accent-color);
+      }
+
+      .custom-checkbox .checkmark::after {
+        content: "";
+        position: absolute;
+        display: none;
+      }
+
+      .custom-checkbox input:checked ~ .checkmark::after {
+        display: block;
+        left: 6px;
+        top: 2px;
+        width: 5px;
+        height: 10px;
+        border: solid var(--primary-color);
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Source+Code+Pro:wght@400;500&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-twilight.min.css">
     <script src="preload.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/material-darker.min.css">
   </head>
   <body>
     <div id="window-bg">
@@ -858,7 +1010,7 @@
           <i class="fas fa-list"></i>
           Lista
         </button>
-        <button class="panel-button">
+        <button class="panel-button" id="codeFormatBtn">
           <i class="fas fa-code"></i>
           Kod
         </button>
@@ -903,6 +1055,24 @@
               <div class="color-sample" style="background: #292524"></div>
             </div>
             <span>Coral Dark</span>
+          </button>
+
+          <button class="theme-button" data-theme="darkGold">
+            <div class="theme-preview">
+              <div class="color-sample" style="background: #1a1814"></div>
+              <div class="color-sample" style="background: #ffd700"></div>
+              <div class="color-sample" style="background: #242021"></div>
+            </div>
+            <span>Dark Gold</span>
+          </button>
+
+          <button class="theme-button" data-theme="oceanNight">
+            <div class="theme-preview">
+              <div class="color-sample" style="background: #0f1b2d"></div>
+              <div class="color-sample" style="background: #00ffff"></div>
+              <div class="color-sample" style="background: #162a45"></div>
+            </div>
+            <span>Ocean Night</span>
           </button>
         </div>
       </div>
@@ -997,7 +1167,84 @@
             <span class="slider-value">100%</span>
           </div>
         </div>
+
+        <div class="panel-section">
+          <div class="panel-title">Optymalizacja wideo</div>
+          <div class="settings-group">
+            <label class="settings-label">
+              <i class="fas fa-compress-arrows-alt"></i>
+              Maksymalna rozdzielczość
+              <select id="maxResolutionSelect" class="settings-select">
+                <option value="720p">720p</option>
+                <option value="1080p">1080p</option>
+                <option value="4k">4K</option>
+              </select>
+            </label>
+          </div>
+        </div>
       </div>
+
+      <div class="panel-section" id="code-highlighting-options" style="display: none;">
+        <div class="panel-title">Kolorowanie kodu</div>
+        <div class="code-boxes">
+          <!-- Box dla HTML -->
+          <div class="code-box" data-language="html">
+            <pre><code class="language-html">&lt;div class="example"&gt;
+  Hello World
+&lt;/div&gt;</code></pre>
+            <span>HTML</span>
+          </div>
+          <!-- Box dla CSS -->
+          <div class="code-box" data-language="css">
+            <pre><code class="language-css">.example {
+  color: #ff79c6;
+  background: #282a36;
+}</code></pre>
+            <span>CSS</span>
+          </div>
+          <!-- Box dla JavaScript -->
+          <div class="code-box" data-language="javascript">
+            <pre><code class="language-javascript">function greet() {
+  console.log('Hello, World!');
+}</code></pre>
+            <span>JavaScript</span>
+          </div>
+          <!-- Box dla C++ -->
+          <div class="code-box" data-language="cpp">
+            <pre><code class="language-cpp">#include &lt;iostream&gt;
+using namespace std;
+int main() {
+  cout &lt;&lt; "Hello, World!" &lt;&lt; endl;
+  return 0;
+}</code></pre>
+            <span>C++</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dodanie sekcji dla opcjonalnego kolorowania składni -->
+    <div id="syntax-options" class="syntax-options">
+      <label class="custom-checkbox">
+        <input type="checkbox" id="syntaxHtml">
+        <span class="checkmark"></span>
+        HTML
+      </label>
+      <label class="custom-checkbox">
+        <input type="checkbox" id="syntaxCss">
+        <span class="checkmark"></span>
+        CSS
+      </label>
+      <label class="custom-checkbox">
+        <input type="checkbox" id="syntaxJavascript">
+        <span class="checkmark"></span>
+        JavaScript
+      </label>
+      <label class="custom-checkbox">
+        <input type="checkbox" id="syntaxCpp">
+        <span class="checkmark"></span>
+        C++
+      </label>
     </div>
   </body>
 </html>

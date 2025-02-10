@@ -15,6 +15,18 @@ class Config {
         enabled: false,
         intensity: 30,
         blend: 'overlay'
+      },
+      videoOptimization: {
+        enabled: true,
+        playbackRate: 0.5,
+        blur: true,
+        blurAmount: 2
+      },
+      syntaxHighlighting: {
+        html: false,
+        css: false,
+        javascript: false,
+        cpp: false
       }
     };
     this.settings = this.loadSettings();
@@ -55,6 +67,27 @@ class Config {
       this.settings[parent] = {};
     }
     this.settings[parent][key] = value;
+    console.log(`Zapisuję ustawienie: ${parent}.${key} = ${value}`);
+    this.saveSettings(this.settings);
+    
+    // Sprawdź, czy ustawienia zostały zapisane
+    const saved = this.loadSettings();
+    console.log('Aktualne ustawienia:', saved);
+    
+    if (saved[parent]?.[key] !== value) {
+      console.error('Błąd zapisu ustawień!');
+    }
+  }
+
+  getVideoOptimization() {
+    return this.settings.videoOptimization || this.defaults.videoOptimization;
+  }
+
+  setVideoOptimization(options) {
+    this.settings.videoOptimization = {
+      ...this.settings.videoOptimization,
+      ...options
+    };
     this.saveSettings(this.settings);
   }
 }
